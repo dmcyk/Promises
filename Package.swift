@@ -8,11 +8,15 @@ let package = Package(
     products: [
         .library(name: "PromisesCore", targets: ["PromisesCore"]),
         .library(name: "PromisesExt", targets: ["PromisesExt"]),
+        .library(name: "Atomic", targets: ["Atomic"])
     ],
     dependencies: [
-         .package(url: "https://github.com/dmcyk/Atomic", from: "0.0.1"),
     ],
     targets: [
+        .target(
+            name: "Atomic",
+            dependencies: []
+        ),
         .target(
             name: "PromisesCore",
             dependencies: ["Atomic"]
