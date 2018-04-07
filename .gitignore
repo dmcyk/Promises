@@ -1,4 +1,14 @@
 .DS_Store
 /.build
 /Packages
-/*.xcodeproj
+
+## Swift Package Manager
+.build/
+
+### Xcode ###
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+
