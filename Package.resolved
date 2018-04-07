@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Atomic",
+        "repositoryURL": "https://github.com/dmcyk/Atomic",
+        "state": {
+          "branch": null,
+          "revision": "cc1295e6af3703d0c63b4ef887a677ecee9f41d3",
+          "version": "0.0.2"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
