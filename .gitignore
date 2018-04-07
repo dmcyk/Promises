@@ -10,5 +10,6 @@
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 !*.xcworkspace/contents.xcworkspacedata
+!*.xcodeproj/*.plist
 /*.gcno
 
