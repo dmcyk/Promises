@@ -220,7 +220,7 @@ public class Promise<T> {
         }
     }
 
-    private func performAttempt(callback: ((Error) -> Void)?, callbackQueue: DispatchQueue?, times: Int, delay: DispatchTimeInterval, resolver: Resolver<T>) {
+    private func performAttempt(callback: @escaping (Error) -> Bool, callbackQueue: DispatchQueue?, times: Int, delay: DispatchTimeInterval, resolver: Resolver<T>) {
         after(delay)
             .done {
                 self.recoverChain()
@@ -236,16 +236,19 @@ public class Promise<T> {
                             }
 
                             callbackQueue.tryAsync {
-                                callback?(error)
-                            }
+                                guard callback(error) else {
+                                    resolver.reject(error)
+                                    return
+                                }
 
-                            self.performAttempt(callback: callback, callbackQueue: callbackQueue, times: times - 1, delay: delay, resolver: resolver)
+                                self.performAttempt(callback: callback, callbackQueue: callbackQueue, times: times - 1, delay: delay, resolver: resolver)
+                            }
                         }
                     }
             }
     }
 
-    public func attempt(on: DispatchQueue? = nil, times: Int, delayBeforeRetry: DispatchTimeInterval = .seconds(2), _ callback: ((Error) -> Void)? = nil) -> Promise {
+    public func attempt(on: DispatchQueue? = nil, times: Int, delayBeforeRetry: DispatchTimeInterval = .seconds(2), _ callback: @escaping (Error) -> Bool) -> Promise {
         guard times > 0 else { return self }
 
         let q = on ?? queue
@@ -255,11 +258,14 @@ public class Promise<T> {
                 switch $0 {
                 case .success(let val):
                     ctx.resolver.fulfill(val)
-                case .error(let err):
+                case .error(let error):
                     q.tryAsync {
-                        callback?(err)
+                        guard callback(error) else {
+                            ctx.resolver.reject(error)
+                            return
+                        }
+                        self.performAttempt(callback: callback, callbackQueue: q, times: times, delay: delayBeforeRetry, resolver: ctx.resolver)
                     }
-                    self.performAttempt(callback: callback, callbackQueue: q, times: times, delay: delayBeforeRetry, resolver: ctx.resolver)
                 }
             }
         }
