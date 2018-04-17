@@ -7,12 +7,6 @@
 
 import Foundation
 
-enum LockKind {
-
-    case read
-    case write
-}
-
 public protocol Lock {
 
     associatedtype LockType

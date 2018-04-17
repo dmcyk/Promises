@@ -8,36 +8,35 @@
 
 import Foundation
 
-public class Promise<T> {
+public struct Promise<T> {
 
-    private let resolver: Resolver<T>
-    private let queue: DispatchQueue?
+    let resolver: Resolver<T>
+    let queue: DispatchQueue?
 
     public init(on queue: DispatchQueue? = nil, bindQueue: Bool = true, _ call: @escaping (Resolver<T>) throws -> Void) {
         self.resolver = Resolver<T>()
         self.queue = bindQueue ? queue : nil
 
+        let resolver = self.resolver
         queue.tryAsync {
             do {
-                try call(self.resolver)
+                try call(resolver)
             } catch {
-                self.resolver.reject(error)
+                resolver.reject(error)
             }
         }
     }
 
-    private init(queue: DispatchQueue?, recover: Bool = false, _ body: @escaping (Resolver<T>) -> Void) {
+    init(queue: DispatchQueue?, recover: Bool = false, _ body: @escaping (Resolver<T>) -> Void) {
         self.resolver = Resolver<T>()
         self.queue = queue
 
         body(self.resolver)
     }
 
-    public init(value: T) {
-        self.resolver = Resolver<T>()
-        self.queue = nil
-
-        resolver.fulfill(value)
+    public init(_ value: T, on queue: DispatchQueue? = nil, bindQueue: Bool = true) {
+        self.resolver = Resolver<T>(value)
+        self.queue = queue
     }
 
     public func bind(to queue: DispatchQueue) -> Promise<T> {
@@ -87,11 +86,18 @@ public class Promise<T> {
     public func done(on: DispatchQueue? = nil, _ body: @escaping (T) -> Void) -> Promise<Void> {
         let q = on ?? queue
 
-        return map { res in
-            q.tryAsync {
-                body(res)
+        return Promise<Void>(queue: queue) { r in
+            self.resolver.inspect {
+                switch $0 {
+                case .success(let value):
+                    q.tryAsync {
+                        body(value)
+                        r.fulfill(())
+                    }
+                case .error(let err):
+                    r.reject(err)
+                }
             }
-            return ()
         }
     }
 
@@ -177,7 +183,7 @@ public class Promise<T> {
     }
 }
 
-private extension Optional where Wrapped == DispatchQueue {
+extension Optional where Wrapped == DispatchQueue {
 
     func tryAsync(_ call: @escaping () -> Void) {
         guard let queue = self else {

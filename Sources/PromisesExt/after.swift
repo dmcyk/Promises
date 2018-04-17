@@ -38,7 +38,7 @@ public func when<T>(fulfilled: [Promise<T>]) -> Promise<Void> {
     var other = fulfilled
 
     guard var current = other.popLast() else {
-        return Promise(value: ())
+        return Promise(())
     }
 
     return Promise<Void> { resolver in

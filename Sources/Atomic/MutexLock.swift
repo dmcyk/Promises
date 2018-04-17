@@ -38,7 +38,7 @@ final public class MutexLock: MututalLock {
         pthread_mutex_destroy(&self.lock)
     }
 
-    func withAnyLock<T>(_ call: () -> T) -> T {
+    public func withAnyLock<T>(_ call: () -> T) -> T {
         let lock = acquire(lock: &self.lock)
         let val = call()
         unlock(lock: lock)

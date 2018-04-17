@@ -8,6 +8,12 @@
 
 import Foundation
 
+private enum LockKind {
+
+    case read
+    case write
+}
+
 private func acquire(lock: UnsafeMutablePointer<pthread_rwlock_t>, type: LockKind) -> UnsafeMutablePointer<pthread_rwlock_t>? {
     let acquired: Int32 = {
         switch type {
@@ -51,16 +57,6 @@ final public class ReadWriteLock: Lock {
     deinit {
         pthread_rwlock_destroy(&self.lock)
     }
-
-    func withLock<T>(of kind: LockKind, _ call: () -> T) -> T {
-        switch kind {
-        case .read:
-            return withReadLock(call)
-        case .write:
-            return withWriteLock(call)
-        }
-    }
-
 
     public func withReadLock<T>(_ call: () -> T) -> T {
         let lock = acquire(lock: &self.lock, type: .read)

@@ -13,30 +13,25 @@ public final class Atomic<T, K: Lock> {
     private let lock = K()
     private var _value: T
 
-    public var value: T {
-        get {
-            return lock.withReadLock {
-                _value
-            }
-        }
-        set {
-            lock.withWriteLock {
-                _value = newValue
-            }
-        }
-    }
-
     public init(_ value: T) {
         _value = value
     }
 
-    public func withWriteLock(_ call: (T) -> T?) {
+    public func write(_ value: T) {
         lock.withWriteLock {
-            guard let value = call(_value) else {
-                return
-            }
-
             _value = value
+        }
+    }
+
+    public func read() -> T {
+        return lock.withReadLock {
+            return _value
+        }
+    }
+
+    public func withWriteLock<E>(_ call: (inout T) -> E) -> E {
+        return lock.withWriteLock {
+            return call(&_value)
         }
     }
 

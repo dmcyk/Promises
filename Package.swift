@@ -24,6 +24,14 @@ let package = Package(
         .target(
             name: "PromisesExt",
             dependencies: ["Atomic"]
+        ),
+        .target(
+            name: "Run",
+            dependencies: ["PromisesCore", "PromisesExt"]
+        ),
+        .testTarget(
+            name: "PromisesTests",
+            dependencies: ["PromisesCore", "PromisesExt"]
         )
     ]
 )

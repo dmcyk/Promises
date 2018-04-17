@@ -9,6 +9,7 @@
 import Foundation
 import Atomic
 
+typealias Handler<T> = (Result<T>) -> Void
 enum Sealant<T> {
 
     case sealed([Handler<T>])
@@ -16,38 +17,49 @@ enum Sealant<T> {
     case cancelled
 }
 
-final class Handler<T> {
+typealias AtomicSeal<T> = Atomic<Sealant<T>, UnfairLock>
+enum Store<T> {
 
-    let body: (Result<T>) -> Void
-
-    init(_ body: @escaping (Result<T>) -> Void) {
-        self.body = body
-    }
+    case value(Result<T>)
+    case seal(AtomicSeal<T>)
 }
 
 public final class Resolver<T> {
 
-    private let value: Atomic<Sealant<T>, UnfairLock> = Atomic(.sealed([]))
+    let value: Store<T>
 
-    func resolve(_ value: Result<T>?) {
-        guard let value = value else {
-            self.value.withWriteLock { _ in
-                return .cancelled
-            }
-            return
+    init(_ value: T? = nil) {
+        let store: Store<T>
+        if let value = value {
+            store = .value(.success(value))
+        } else {
+            store = .seal(Atomic(.sealed([])))
         }
 
-        var handlers: [Handler<T>] = []
-        self.value.withWriteLock {
+        self.value = store
+    }
+
+    func resolve(_ rawValue: Result<T>?) {
+        guard case .seal(let atomic) = self.value else { return }
+
+        var handlers: [Handler<T>]?
+
+        guard let value: Result<T> = atomic.withWriteLock({
             guard case .sealed(let _handlers) = $0 else {
                 return nil // already resolved
             }
 
-            handlers = _handlers
-            return .resolved(value)
-        }
+            guard let _value = rawValue else {
+                $0 = .cancelled
+                return nil
+            }
 
-        handlers.forEach { $0.body(value) }
+            handlers = _handlers
+            $0 = .resolved(_value)
+            return _value
+        }) else { return }
+
+        handlers?.forEach { $0(value) }
     }
 
     func pipe(to other: Resolver<T>) {
@@ -57,23 +69,26 @@ public final class Resolver<T> {
     }
 
     func inspect(_ call: @escaping (Result<T>) -> Void) {
-        var preResult: Result<T>?
-        value.withWriteLock {
-            switch $0 {
-            case .sealed(let handlers):
-                let newHandler = Handler() {
-                    call($0)
-                }
-                return .sealed(handlers + [newHandler])
-            case .resolved(let _result):
-                preResult = _result
-                return nil
-            case .cancelled:
-                return nil
-            }
+        let atomic: AtomicSeal<T>
+        switch value {
+        case .seal(let _atomic):
+            atomic = _atomic
+        case .value(let result):
+            call(result)
+            return
         }
 
-        guard let result = preResult else { return }
+        guard let result = atomic.withWriteLock({ val -> Result<T>? in
+            switch val {
+            case .sealed(var handlers):
+                handlers.append(call)
+                val = .sealed(handlers)
+                return nil
+            case .resolved(let _result):
+                return _result
+            case .cancelled: return nil
+            }
+        }) else { return }
 
         call(result)
     }

@@ -8,15 +8,15 @@
 
 import Foundation
 
-public class Promise<T> {
+public struct Promise<T> {
 
     private struct ActionCtx {
 
         let resolver: Resolver<T>
         let isRecovery: Bool
 
-        init(_ promise: Promise<T>, isRecovery: Bool) {
-            self.resolver = promise.resolver
+        init(_ resolver: Resolver<T>, isRecovery: Bool) {
+            self.resolver = resolver
             self.isRecovery = isRecovery
         }
 
@@ -40,8 +40,10 @@ public class Promise<T> {
             }
         }
 
+        let action = self.action
+        let resolver = self.resolver
         queue.tryAsync {
-            self.action(ActionCtx(self, isRecovery: false))
+            action(ActionCtx(resolver, isRecovery: false))
         }
     }
 
@@ -50,17 +52,13 @@ public class Promise<T> {
         self.queue = queue
         self.action = body
 
-        body(ActionCtx(self, isRecovery: recover))
+        body(ActionCtx(resolver, isRecovery: recover))
     }
 
-    public init(value: T) {
-        self.resolver = Resolver<T>()
-        self.queue = nil
-        self.action = {
-            $0.resolver.fulfill(value)
-        }
-
-        action(ActionCtx(self, isRecovery: false))
+    public init(_ value: T, on queue: DispatchQueue? = nil, bindQueue: Bool = true) {
+        self.resolver = Resolver<T>(value)
+        self.queue = queue
+        self.action = { _ in }
     }
 
     public func bind(to queue: DispatchQueue) -> Promise<T> {
@@ -110,11 +108,18 @@ public class Promise<T> {
     public func done(on: DispatchQueue? = nil, _ body: @escaping (T) -> Void) -> Promise<Void> {
         let q = on ?? queue
 
-        return map { res in
-            q.tryAsync {
-                body(res)
+        return Promise<Void>(queue: queue) { ctx in
+            ctx.sourceResolver(from: self).inspect {
+                switch $0 {
+                case .success(let value):
+                    q.tryAsync {
+                        body(value)
+                        ctx.resolver.fulfill(())
+                    }
+                case .error(let err):
+                    ctx.resolver.reject(err)
+                }
             }
-            return ()
         }
     }
 
