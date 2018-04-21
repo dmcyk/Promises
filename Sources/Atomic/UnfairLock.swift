@@ -22,7 +22,7 @@ final private class _UnfairLock: MututalLock {
     }
 }
 
-final public class UnfairLock: MututalLock {
+final public class UnfairLock: Lock {
 
     public typealias LockType = os_unfair_lock_s
 
@@ -32,15 +32,23 @@ final public class UnfairLock: MututalLock {
         if #available(macOS 10.12, iOS 10.0, *) {
             lock = _UnfairLock()
         } else {
-            lock = MutexLock()
+            lock = ReadWriteLock()
         }
     }
 
-    public func withAnyLock<T>(_ call: () -> T) -> T {
+    public func withReadLock<T>(_ call: () -> T) -> T {
         if #available(macOS 10.12, iOS 10.0, *) {
             return (lock as! _UnfairLock).withAnyLock(call)
         } else {
-            return (lock as! MutexLock).withAnyLock(call)
+            return (lock as! ReadWriteLock).withReadLock(call)
+        }
+    }
+
+    public func withWriteLock<T>(_ call: () -> T) -> T {
+        if #available(macOS 10.12, iOS 10.0, *) {
+            return (lock as! _UnfairLock).withAnyLock(call)
+        } else {
+            return (lock as! ReadWriteLock).withWriteLock(call)
         }
     }
 }
