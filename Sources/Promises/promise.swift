@@ -112,6 +112,24 @@ public struct Promise<T, Failure: Error> {
     }
   }
 
+  public func thenErr<E, K>(on: DispatchQueue? = nil,_ body: @escaping (T) -> Promise<E, K>, map: @escaping (Failure) -> K) -> Promise<E, K> {
+    let q = on ?? queue
+
+    return Promise<E, K>(queue: queue) { r in
+      self.resolver.inspect {
+        switch $0 {
+        case .success(let value):
+          q.tryAsync {
+            let new = body(value)
+            r.pipe(to: new.resolver)
+          }
+        case .failure(let err):
+          r.reject(map(err))
+        }
+      }
+    }
+  }
+
   public func compactMap<E>(on: DispatchQueue? = nil, _ transform: @escaping (T) -> E?) -> Promise<E, CompactMapError<Failure>> {
     let q = on ?? queue
 
