@@ -16,30 +16,34 @@ public func after<Failure>(_ delay: DispatchTimeInterval) -> Promise<Void, Failu
   }
 }
 
-public func attempt<T, Failure>(times maximumRetryCount: Int = 3, delayBeforeRetry: DispatchTimeInterval = .seconds(2), _ body: @autoclosure @escaping () -> Promise<T, Failure>) -> Promise<T, Failure> {
-    var attempts = 0
-    func attempt() -> Promise<T, Failure> {
-      attempts += 1
-      return body().recover { error -> Promise<T, Failure> in
-        guard attempts < maximumRetryCount else { return Promise(error: error) }
-        return after(delayBeforeRetry)
-          .then { _ in
-            attempt()
-          }
+public func attempt<T, Failure>(
+  times maximumRetryCount: Int = 3,
+  delayBeforeRetry: DispatchTimeInterval = .seconds(2),
+  _ body: @autoclosure @escaping () -> Promise<T, Failure>
+) -> Promise<T, Failure> {
+  var attempts = 0
+  func attempt() -> Promise<T, Failure> {
+    attempts += 1
+    return body().recover { error -> Promise<T, Failure> in
+      guard attempts < maximumRetryCount else { return Promise(error: error) }
+      return after(delayBeforeRetry)
+        .then { _ in
+          attempt()
       }
     }
-    return attempt()
+  }
+  return attempt()
 }
 
 public func firstly<T, Failure>(_ block: () -> Promise<T, Failure>) -> Promise<T, Failure> {
-    return block()
+  return block()
 }
 
 public func when<T, Failure>(fulfilled: [Promise<T, Failure>]) -> Promise<Void, Failure> {
   var other = fulfilled
 
   guard var current = other.popLast() else {
-      return Promise(())
+    return Promise(())
   }
 
   return Promise<Void, Failure> { resolver in
@@ -47,7 +51,7 @@ public func when<T, Failure>(fulfilled: [Promise<T, Failure>]) -> Promise<Void, 
       current = current
         .then { _ in
           return next
-        }
+      }
     }
 
     current

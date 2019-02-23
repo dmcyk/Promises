@@ -1,5 +1,5 @@
 import XCTest
-@testable import PromisesCore
+@testable import Promises
 
 final class PromisesTests: XCTestCase {
 

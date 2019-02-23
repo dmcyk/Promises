@@ -46,8 +46,8 @@ public struct Promise<T, Failure: Error> {
         switch result {
         case .success(let value):
           q.tryAsync {
-             body(value)
-             r.fulfill(value)
+            body(value)
+            r.fulfill(value)
           }
         case .failure(let error):
           r.reject(error)
@@ -152,7 +152,7 @@ public struct Promise<T, Failure: Error> {
   }
 
   public func asVoid() -> Promise<Void, Failure> {
-      return map { _ in .success(()) }
+    return map { _ in .success(()) }
   }
 
   public func asAny() -> Promise<Any, Failure> {
@@ -187,62 +187,6 @@ extension Promise {
     let resolver = self.resolver
     queue.tryAsync {
       call(resolver)
-    }
-  }
-}
-extension Promise where Failure == AnyError {
-
-  public init(on queue: DispatchQueue? = nil, bindQueue: Bool = true, catching call: @escaping (ResolverType) throws -> Void) {
-    self.init(on: queue, bindQueue: bindQueue) {
-      do {
-        try call($0)
-      } catch {
-        $0.reject(AnyError(error))
-      }
-    }
-  }
-
-  public func then<E>(on: DispatchQueue? = nil, catching body: @escaping (T) throws -> Promise<E, AnyError>) -> Promise<E, AnyError> {
-    let q = on ?? queue
-
-    return Promise<E, Failure>(queue: queue) { r in
-      self.resolver.inspect {
-        switch $0 {
-        case .success(let value):
-          q.tryAsync {
-            do {
-              let new = try body(value)
-              r.pipe(to: new.resolver)
-            } catch {
-              r.reject(AnyError(error))
-            }
-          }
-        case .failure(let err):
-          r.reject(err)
-        }
-      }
-    }
-  }
-
-  public func map<E>(on: DispatchQueue? = nil, _ transform: @escaping (T) throws -> E) -> Promise<E, AnyError> {
-    let q = on ?? queue
-
-    return Promise<E, Failure>(queue: queue) { r in
-      self.resolver.inspect {
-        switch $0 {
-        case .success(let value):
-          q.tryAsync {
-            do {
-              let new = try transform(value)
-              r.fulfill(new)
-            } catch {
-              r.reject(AnyError(error))
-            }
-          }
-        case .failure(let err):
-          r.reject(err)
-        }
-      }
     }
   }
 }

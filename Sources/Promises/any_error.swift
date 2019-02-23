@@ -28,4 +28,3 @@ public struct AnyError: LocalizedError {
     self.error = (error as? AnyError)?.error ?? error
   }
 }
-
