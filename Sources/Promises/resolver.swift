@@ -1,50 +1,46 @@
 //
-//  Resolver.swift
-//  DNISonicKit-iOS
+//  resolver.swift
+//  Promise
 //
 //  Created by damian.malarczyk on 30/03/2018.
-//  Copyright © 2018 Discovery. All rights reserved.
+//  Copyright © 2019 dmcyk. All rights reserved.
 //
 
 import Foundation
-import Atomic
 
-typealias Handler<T> = (Result<T>) -> Void
-enum Sealant<T> {
+typealias Handler<T, Failure: Error> = (Result<T, Failure>) -> Void
+enum Sealant<T, Failure: Error> {
 
-    case sealed([Handler<T>])
-    case resolved(Result<T>)
+    case sealed([Handler<T, Failure>])
+    case resolved(Result<T, Failure>)
     case cancelled
 }
 
-typealias AtomicSeal<T> = Atomic<Sealant<T>, UnfairLock>
-enum Store<T> {
+typealias AtomicSeal<T, Failure: Error> = Atomic<Sealant<T, Failure>>
+enum Store<T, Failure: Error> {
 
-    case value(Result<T>)
-    case seal(AtomicSeal<T>)
+    case value(Result<T, Failure>)
+    case seal(AtomicSeal<T, Failure>)
 }
 
-public final class Resolver<T> {
+public final class Resolver<T, Failure: Error> {
 
-    let value: Store<T>
+    let value: Store<T, Failure>
 
-    init(_ value: T? = nil) {
-        let store: Store<T>
-        if let value = value {
-            store = .value(.success(value))
-        } else {
-            store = .seal(Atomic(.sealed([])))
-        }
-
-        self.value = store
+    init(_ value: Result<T, Failure>? = nil) {
+      if let value = value {
+        self.value = .value(value)
+      } else {
+        self.value = .seal(Atomic(.sealed([])))
+      }
     }
 
-    func resolve(_ rawValue: Result<T>?) {
+    public func resolve(_ rawValue: Result<T, Failure>?) {
         guard case .seal(let atomic) = self.value else { return }
 
-        var handlers: [Handler<T>]?
+        var handlers: [Handler<T, Failure>]?
 
-        guard let value: Result<T> = atomic.withWriteLock({
+        guard let value: Result<T, Failure> = atomic.withWriteLock({
             guard case .sealed(let _handlers) = $0 else {
                 return nil // already resolved
             }
@@ -62,14 +58,14 @@ public final class Resolver<T> {
         handlers?.forEach { $0(value) }
     }
 
-    func pipe(to other: Resolver<T>) {
+    func pipe(to other: Resolver<T, Failure>) {
         other.inspect { val in
             self.resolve(val)
         }
     }
 
-    func inspect(_ call: @escaping (Result<T>) -> Void) {
-        let atomic: AtomicSeal<T>
+    func inspect(_ call: @escaping (Result<T, Failure>) -> Void) {
+        let atomic: AtomicSeal<T, Failure>
         switch value {
         case .seal(let _atomic):
             atomic = _atomic
@@ -78,7 +74,7 @@ public final class Resolver<T> {
             return
         }
 
-        guard let result = atomic.withWriteLock({ val -> Result<T>? in
+        guard let result = atomic.withWriteLock({ val -> Result<T, Failure>? in
             switch val {
             case .sealed(var handlers):
                 handlers.append(call)
@@ -101,7 +97,7 @@ public final class Resolver<T> {
         resolve(.success(newValue))
     }
 
-    public func reject(_ error: Error) {
-        resolve(.error(error))
+    public func reject(_ error: Failure) {
+        resolve(.failure(error))
     }
 }

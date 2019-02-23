@@ -1,5 +1,6 @@
 
-import PromisesCore
+import Foundation
+import Promises
 
 let queue = DispatchQueue(label: #function, qos: .userInitiated)
 let otherThread = DispatchQueue.global(qos: .background)
@@ -16,27 +17,27 @@ func print(average time: Double) {
 var time: Double = 0
 
 func bench() {
-    Promise<Void>((), on: queue)
-        .map {
-            ()
+  Promise<Void, AnyError>((), on: queue)
+    .map { _ in
+        ()
 //            Promise { r in
 //                otherThread.async {
 //                    r.fulfill(())
 //                }
 //            }
-        }
-        .map { ()
+    }
+    .map { _ in
+        ()
 //            Promise { r in
 //                otherThread.async {
 //                    r.fulfill(())
 //                }
 //            }
-        }
-        .done {
-            semaphore.signal()
+    }.done {
+      semaphore.signal()
     }
 
-    semaphore.wait()
+  semaphore.wait()
 }
 // Act.
 func measureTime(_ block: () -> Void) -> Double {
@@ -46,9 +47,9 @@ func measureTime(_ block: () -> Void) -> Double {
 }
 
 DispatchQueue.main.async {
-    time = (0 ..< Constants.iterationCount).reduce(0) { current, _ in
-        current + measureTime(bench)
-    }
+  time = (0 ..< Constants.iterationCount).reduce(0) { current, _ in
+    current + measureTime(bench)
+  }
 }
 
 // Assert.

@@ -1,4 +1,4 @@
-// swift-tools-version:4.0
+// swift-tools-version:4.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,32 +6,22 @@ import PackageDescription
 let package = Package(
     name: "Promises",
     products: [
-        .library(name: "PromisesCore", targets: ["PromisesCore"]),
-        .library(name: "PromisesExt", targets: ["PromisesExt"]),
-        .library(name: "Atomic", targets: ["Atomic"])
+        .library(name: "Promises", targets: ["Promises"])
     ],
     dependencies: [
     ],
     targets: [
         .target(
-            name: "Atomic",
+            name: "Promises",
             dependencies: []
         ),
         .target(
-            name: "PromisesCore",
-            dependencies: ["Atomic"]
-        ),
-        .target(
-            name: "PromisesExt",
-            dependencies: ["Atomic"]
-        ),
-        .target(
             name: "Run",
-            dependencies: ["PromisesCore", "PromisesExt"]
+            dependencies: ["Promises"]
         ),
         .testTarget(
             name: "PromisesTests",
-            dependencies: ["PromisesCore", "PromisesExt"]
+            dependencies: ["Promises"]
         )
     ]
 )
