@@ -22,12 +22,12 @@ public struct Promise<T, Failure: Error> {
     body(self.resolver)
   }
 
-  public init(_ value: T, on queue: DispatchQueue? = nil, bindQueue: Bool = true) {
+  public init(_ value: T, on queue: DispatchQueue? = nil) {
     self.resolver = ResolverType(.success(value))
     self.queue = queue
   }
 
-  public init(error: Failure, on queue: DispatchQueue? = nil, bindQueue: Bool = true) {
+  public init(error: Failure, on queue: DispatchQueue? = nil) {
     self.resolver = ResolverType(.failure(error))
     self.queue = queue
   }
@@ -124,7 +124,9 @@ public struct Promise<T, Failure: Error> {
             r.pipe(to: new.resolver)
           }
         case .failure(let err):
-          r.reject(map(err))
+          q.tryAsync {
+            r.reject(map(err))
+          }
         }
       }
     }
@@ -164,6 +166,23 @@ public struct Promise<T, Failure: Error> {
           }
         case .failure(let err):
           r.reject(err)
+        }
+      }
+    }
+  }
+
+  public func mapErr<E: Error>(on: DispatchQueue? = nil, _ transform: @escaping (Failure) -> Result<T, E>) -> Promise<T, E> {
+    let q = on ?? queue
+
+    return Promise<T, E>(queue: queue) { r in
+      self.resolver.inspect {
+        switch $0 {
+        case .success(let value):
+          r.fulfill(value)
+        case .failure(let err):
+          q.tryAsync {
+            r.resolve(transform(err))
+          }
         }
       }
     }

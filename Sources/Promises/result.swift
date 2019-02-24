@@ -163,9 +163,17 @@ public extension Result where Failure == AnyError {
       self = .failure(AnyError(error))
     }
   }
+}
+
+public extension Result {
 
   var error: Failure? {
     if case .failure(let val) = self { return val }
+    return nil
+  }
+
+  var value: Success? {
+    if case .success(let val) = self { return val }
     return nil
   }
 }
